@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <cmath>
+#include <ctime>
 
 using namespace std;
 std::vector<std::string> split(std::string str,std::string sep){
@@ -91,14 +92,11 @@ vector<point> twoOptSwap(std::vector<point> tour, int i, int k) {
   int size = tour.size();
   vector<point> newTour = copypoints(tour);
 
-  // 2. take route[i] to route[k] and add them in reverse order to new_route
   int dec = 0;
   for ( int c = i; c <= k; ++c ) {
     newTour.at(c) = tour.at(k-dec);
     dec++;
   }
-
-  // 3. take route[k+1] to end and add them in order to new_route
   for ( int c = k + 1; c < size; ++c ) {
     newTour.at(c) = tour.at(c);
   }
@@ -106,31 +104,50 @@ vector<point> twoOptSwap(std::vector<point> tour, int i, int k) {
 }
 
 std::vector<point> simulatedAnnealing(std::vector<point> points) {
-  double temp = 15000;
-  double coolingRate = 0.0003;
   int size = points.size();
+  double temp = 15000;
+  double coolingRate = 0.00003;
+  double duration;
+  if (size > 100) { coolingRate = 0.03; }
   vector<point> solution = copypoints(points);
   vector<point> best = copypoints(points);
-  while (temp > 1) {
-    cout << getDistance(solution) << endl;
+  std::clock_t start;
+  start = std::clock();
+  while (temp > 1 && duration < 1.5) {
+    duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+    if (duration > 1.85) { return best; }
     std::vector<point> newSolution = copypoints(solution);
-    newSolution = swappoints(newSolution, rand() % size, rand() % size);
+    int rand1 = rand() % size;
+    int rand2 = rand() % size;
+    newSolution = swappoints(newSolution, rand1, rand2);
+    newSolution = twoOptSwap(newSolution, rand1, rand2);
+    if (acceptNewSolution(temp, newSolution, solution)) {
+      solution = newSolution;
+    }
+    if (getDistance(newSolution) < getDistance(best)) {
+      best = copypoints(newSolution);
+    }
+
+    temp = temp*(1-coolingRate);
+  }
+
+  while (duration < 1.85) {
     for (int i = 0; i < points.size(); i=i+1) {
-      for (int k = i + 1; k < points.size(); k=k+1) {
-        newSolution = twoOptSwap(newSolution, i, k);
-        if (acceptNewSolution(temp, newSolution, solution)) {
-          solution = newSolution;
-        }
-        if (getDistance(newSolution) < getDistance(best)) {
-          best = copypoints(newSolution);
+      for (int k = i+1; k < points.size(); k=k+1) {
+        vector<point> newSolution = twoOptSwap(solution, i, k);
+        duration = ( std::clock() - start ) / (double) CLOCKS_PER_SEC;
+        if (duration > 1.85) { return best; }
+        if (getDistance(newSolution) < getDistance(best) ) {
+          return newSolution;
         }
       }
     }
-    temp = temp*(1-coolingRate);
   }
+
   if (getDistance(solution) > getDistance(best)) {
     return best;
   }
+
   return solution;
 }
 
@@ -143,7 +160,7 @@ void printPath(vector<point> path) {
 int main() {
   vector<point> points = readInput();
   vector<point> solution = simulatedAnnealing(points);
-  cout << "häst: " << getDistance(solution) << endl;
+  //cout << "häst: " << getDistance(solution) << endl;
   printPath(solution);
   return 0;
 }
